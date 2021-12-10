@@ -1,5 +1,5 @@
-import MetaMaskOnboarding from '@metamask/onboarding';
 import React from 'react';
+import MetaMaskOnboarding from '@metamask/onboarding';
 
 const AVALANCHE_MAINNET_PARAMS = {
     chainId: '0xA86A',
@@ -25,7 +25,8 @@ const AVALANCHE_TESTNET_PARAMS = {
 }
 const AVALANCHE_NETWORK_PARAMS = AVALANCHE_TESTNET_PARAMS;
 
-export function OnboardingButton() {
+
+export function OnboardingButton(props) {
     const [accounts, setAccounts] = React.useState([]);
     const [chainId, setChainId] = React.useState();
     const [onboarding] = React.useState(new MetaMaskOnboarding());
@@ -52,11 +53,17 @@ export function OnboardingButton() {
     };
 
     React.useEffect(() => {
+        const updateChainId = (chainId) => {
+            setChainId(chainId);
+            if (chainId.toLowerCase() === AVALANCHE_NETWORK_PARAMS.chainId.toLowerCase()) {
+                props.onConnected()
+            }
+        }
         if (MetaMaskOnboarding.isMetaMaskInstalled()) {
-            window.ethereum.on('accountsChanged', setAccounts);
-            window.ethereum.on('chainChanged', () => window.location.reload());
-            window.ethereum.on('connect', (connectInfo) => { console.log(connectInfo); setChainId(connectInfo.chainId) });
             connectMetaMask();
+            window.ethereum.on('accountsChanged', setAccounts);
+            window.ethereum.on('chainChanged', updateChainId);
+            window.ethereum.on('connect', (connectInfo) => updateChainId(connectInfo.chainId));
         }
     }, [chainId]);
 
