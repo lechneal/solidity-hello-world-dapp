@@ -5,6 +5,7 @@ import { ethers } from 'ethers'
 
 // Import App components
 import { OnboardingButton } from './components/Onboarding'
+import { UpdateForm } from './components/UpdateForm'
 
 // Import contract address and artifact
 import ContractArtifact from './contracts/HelloWorld.json'
@@ -18,11 +19,14 @@ class App extends React.Component {
       isConnected: false,
       contract: null,
       currentMessage: '',
-      messageInterval: null
+      messageInterval: null,
+      updateTransactionHash: null,
+      transactionError: null
     }
 
     this.onConnected = this.onConnected.bind(this)
     this.fetchMessage = this.fetchMessage.bind(this)
+    this.updateMessage = this.updateMessage.bind(this)
   }
 
   componentWillUnmount () {
@@ -59,6 +63,38 @@ class App extends React.Component {
     this.setState({ currentMessage: await this.state.contract.message() })
   }
 
+  async updateMessage (newMessage) {
+    console.log('Sending new message', newMessage)
+    this.setState({ transactionError: null })
+
+    try {
+      // Call the update method of the contract
+      const tx = await this.state.contract.update(newMessage)
+      console.log('Created transaction', tx)
+      // Store the transaction hash in the state
+      this.setState({ updateTransactionHash: tx.hash })
+
+      // Wait until the transaction is resolved (either mined
+      // or returns with an error)
+      const receipt = await tx.wait()
+      console.log('Transaction successfull', receipt)
+
+      if (receipt.status === 0) {
+        // An undefined error occurred
+        throw new Error('Transaction failed')
+      }
+
+      // Fetch the current message with a delay of 1 second
+      setTimeout(this.fetchMessage, 1000)
+    } catch (error) {
+      // An error occurred
+      console.error(error)
+      this.setState({ transactionError: error })
+    } finally {
+      this.setState({ updateTransactionHash: null })
+    }
+  }
+
   render () {
     const MessageComponent = <div>
       {this.state.currentMessage
@@ -74,7 +110,22 @@ class App extends React.Component {
 
         <OnboardingButton onConnected={this.onConnected} />
 
-        {this.state.isConnected && MessageComponent}
+        {this.state.isConnected &&
+          <div>
+            {MessageComponent}
+            <UpdateForm
+              currentMessage={this.state.currentMessage}
+              updateTransactionHash={this.state.updateTransactionHash}
+              updateMessage={this.updateMessage}
+            />
+          </div>
+        }
+
+        {this.state.transactionError &&
+          <div>
+            Transaction Error: {this.state.transactionError.code} {this.state.transactionError.message}
+          </div>
+        }
       </div>
     )
   }
