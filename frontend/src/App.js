@@ -3,8 +3,8 @@ import './App.css'
 import React from 'react'
 import { ethers } from 'ethers'
 
+// Import App components
 import { OnboardingButton } from './components/Onboarding'
-import { UpdateForm } from './components/UpdateForm'
 
 // Import contract address and artifact
 import ContractArtifact from './contracts/HelloWorld.json'
@@ -18,13 +18,10 @@ class App extends React.Component {
       isConnected: false,
       contract: null,
       currentMessage: '',
-      messageInterval: null,
-      updateTransactionHash: null,
-      transactionError: null
+      messageInterval: null
     }
 
     this.onConnected = this.onConnected.bind(this)
-    this.updateMessage = this.updateMessage.bind(this)
     this.fetchMessage = this.fetchMessage.bind(this)
   }
 
@@ -35,8 +32,11 @@ class App extends React.Component {
   }
 
   async onConnected () {
+    // Use the MetaMask wallet as ethers provider
     const provider = new ethers.providers.Web3Provider(window.ethereum)
 
+    // Create a JavaScript object from the Contract ABI, to interact
+    // with the HelloWorld contract.
     const contract = new ethers.Contract(
       contractAddress.Contract,
       ContractArtifact.abi,
@@ -46,69 +46,35 @@ class App extends React.Component {
     this.setState({
       isConnected: true,
       contract,
+      // Start fetching the contract's message every 30 seconds
       messageInterval: setInterval(this.fetchMessage, 30000)
     })
-    this.fetchMessage()
+
+    // Fetch the current message
+    await this.fetchMessage()
   }
 
   async fetchMessage () {
-    console.log('fetching message')
+    console.log('fetching current contract message')
     this.setState({ currentMessage: await this.state.contract.message() })
   }
 
-  async updateMessage (newMessage) {
-    console.log('Sending new message', newMessage)
-    this.setState({ transactionError: null })
-
-    try {
-      const tx = await this.state.contract.update(newMessage)
-      console.log('Created transaction', tx)
-      this.setState({ updateTransactionHash: tx.hash })
-
-      const receipt = await tx.wait()
-      console.log('Transaction successfull', receipt)
-
-      if (receipt.status === 0) {
-        // Receipt status equals to 0 indicates an error.
-        throw new Error('Transaction failed')
-      }
-
-      setTimeout(this.fetchMessage, 1000)
-    } catch (error) {
-      console.error(error)
-      this.setState({ transactionError: error })
-    } finally {
-      this.setState({ updateTransactionHash: null })
-    }
-  }
-
   render () {
-    const messageComponent = this.state.currentMessage
-      ? <p>I&apos;m saying 💬<br />{this.state.currentMessage}</p>
-      : <p>Loading message...</p>
+    const MessageComponent = <div>
+      {this.state.currentMessage
+        ? <p>📯📯📯 Current message: 📯📯📯<br />&ldquo;{this.state.currentMessage}&rdquo;</p>
+        : <p>Loading message...</p>
+      }
+    </div>
 
     return (
       <div className="App">
         <h1>My Awesome dApp</h1>
         <h2>HelloWorld on Avalanche</h2>
+
         <OnboardingButton onConnected={this.onConnected} />
-        {this.state.isConnected &&
-          <div>
-            <div>
-              {messageComponent}
-            </div>
-            <UpdateForm
-              currentMessage={this.state.currentMessage}
-              updateTransactionHash={this.state.updateTransactionHash}
-              updateMessage={this.updateMessage}
-            />
-          </div>
-        }
-        {this.state.transactionError &&
-          <div>
-            Transaction Error: {this.state.transactionError.code} {this.state.transactionError.message}
-          </div>
-        }
+
+        {this.state.isConnected && MessageComponent}
       </div>
     )
   }
